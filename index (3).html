@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#11141b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SP Voice">
+<title>Save Point Voice</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: phone-first app shell. Start screen (log in / create player), then Lobby, Call, Me (settings). Same look as Save Point. */
+:root {
+  --bg: #11141b; --surface: #191e28; --raise: #222937; --line: #2b3342;
+  --text: #e8ebf1; --muted: #8d97a9; --accent: #ff7a45; --accent-ink: #1a0d06;
+  --play: #4fd1c5; --live: #3ddc84; --danger: #ff5c6c;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Figtree", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); background-repeat: no-repeat; background-size: cover; background-position: center; color: var(--text); font: 15px/1.5 var(--font-body); -webkit-font-smoothing: antialiased; display: flex; flex-direction: column; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+img { display: block; max-width: 100%; }
+
+header { padding: calc(env(safe-area-inset-top) + 10px) 16px 10px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(12px); }
+body.gate header { display: none; }
+.logo { white-space: nowrap; min-width: 0; font-family: var(--font-display); font-weight: 800; font-size: 20px; letter-spacing: -0.02em; display: flex; align-items: center; gap: 8px; }
+.mark { width: 30px; height: 30px; border-radius: 9px; background: var(--accent); display: grid; place-items: center; flex: none; }
+.logo small { font-family: var(--font-body); font-weight: 600; font-size: 12px; color: var(--muted); letter-spacing: 0; }
+header .sp { flex: 1; }
+header .btn { padding: 7px 10px; }
+@media (max-width: 420px) { .logo small { display: none; } }
+.me-btn { background: none; border: 0; padding: 0; border-radius: 50%; }
+main { flex: 1; overflow-y: auto; padding: 16px 16px calc(env(safe-area-inset-bottom) + 24px); }
+.wrap { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+h2 { font-family: var(--font-display); font-size: 21px; margin: 0; line-height: 1.15; text-wrap: balance; }
+h3 { font-family: var(--font-display); font-size: 17px; margin: 6px 0 0; }
+.meta { font-size: 12.5px; color: var(--muted); }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.field input { background: var(--raise); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; outline: none; }
+.field input:focus { border-color: var(--accent); }
+.field input[type=range] { padding: 0; border: 0; background: none; accent-color: var(--accent); }
+.btn { border: 1px solid var(--line); background: var(--raise); border-radius: 999px; padding: 9px 15px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.ghost { background: transparent; border-color: transparent; }
+.btn.danger { color: var(--danger); }
+.btn.big { width: 100%; padding: 13px 18px; font-size: 16px; }
+.btn:disabled { opacity: .5; cursor: default; }
+label.btn { cursor: pointer; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.err { color: var(--danger); font-size: 13px; text-align: center; margin: 0; }
+.linkbtn { background: none; border: 0; color: var(--muted); font-size: 13px; text-decoration: underline; padding: 4px; align-self: center; }
+.chip-play { align-self: center; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--play); background: color-mix(in srgb, var(--play) 12%, transparent); border: 1px solid color-mix(in srgb, var(--play) 35%, transparent); padding: 3px 12px; border-radius: 999px; }
+.chip-play::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--play); }
+.banner { border: 1px solid var(--line); border-left: 3px solid var(--accent); background: var(--surface); border-radius: 10px; padding: 10px 12px; font-size: 13.5px; color: var(--muted); }
+.banner strong { color: var(--text); }
+.banner.err { border-left-color: var(--danger); }
+.file-in { position: fixed; left: -9999px; top: 0; width: 1px; height: 1px; opacity: 0; }
+
+/* Avatars */
+.av { position: relative; width: 40px; height: 40px; border-radius: 50%; flex: none; display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: 15px; color: #10131a; background-size: cover !important; background-position: center !important; }
+.av.lg { width: 84px; height: 84px; font-size: 30px; }
+.av.md { width: 72px; height: 72px; font-size: 26px; }
+.av.sm { width: 32px; height: 32px; font-size: 12px; }
+.av .dot { position: absolute; right: 0; bottom: 0; width: 26%; height: 26%; border-radius: 50%; background: var(--live); border: 3px solid var(--surface); }
+.av-btn { position: relative; border: 0; padding: 0; background: none; border-radius: 50%; cursor: pointer; }
+.av-btn .badge { position: absolute; right: -2px; bottom: -2px; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; border: 3px solid var(--surface); }
+.swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+.swatch { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; padding: 0; }
+.swatch.sel { border-color: var(--text); }
+
+/* Start screen */
+.gate-wrap { min-height: calc(100dvh - 48px); display: flex; flex-direction: column; justify-content: center; gap: 22px; max-width: 420px; margin: 0 auto; padding-top: env(safe-area-inset-top); }
+.gate-brand { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+.gate-mark { width: 88px; height: 88px; border-radius: 26px; background: var(--accent); display: grid; place-items: center; box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 18%, transparent), 0 12px 40px color-mix(in srgb, var(--accent) 30%, transparent); }
+.gate-brand h1 { font-family: var(--font-display); font-weight: 800; font-size: 42px; letter-spacing: -0.03em; margin: 0; line-height: 1; text-shadow: 0 2px 20px rgba(0,0,0,.4); }
+.gate-brand p { margin: 0; color: var(--muted); }
+.gate-card .center { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+.press { text-align: center; font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+.pin-input { text-align: center; letter-spacing: .5em; font-size: 22px !important; font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: no-preference) {
+  .gate-mark svg { animation: spin 3.2s cubic-bezier(.6,0,.4,1) infinite; }
+  @keyframes spin { 0%, 55% { transform: rotate(0); } 100% { transform: rotate(360deg); } }
+}
+
+/* Lobby */
+.room { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+.room:hover { border-color: var(--muted); }
+.room .ic { width: 40px; height: 40px; border-radius: 11px; background: var(--raise); display: grid; place-items: center; color: var(--muted); flex: none; }
+.room.live .ic { color: var(--live); background: color-mix(in srgb, var(--live) 14%, transparent); }
+.room .t { flex: 1; min-width: 0; }
+.room .t b { display: block; font-size: 16px; }
+.room .who { font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+.room.live .who { color: var(--live); }
+.room .go { font-size: 13px; font-weight: 700; color: var(--accent); }
+
+/* Call */
+.live-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--live); display: inline-block; margin-right: 8px; vertical-align: middle; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.tile { background: color-mix(in srgb, var(--surface) 92%, transparent); border: 1px solid var(--line); border-radius: 18px; padding: 16px 10px 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; position: relative; }
+.tile .av { box-shadow: 0 0 0 3px var(--surface), 0 0 0 6px transparent; transition: box-shadow .12s ease; }
+.tile.speaking .av { box-shadow: 0 0 0 3px var(--surface), 0 0 0 6px var(--live); }
+.tile .nm { font-weight: 700; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tile .pl { font-size: 11.5px; color: var(--play); font-weight: 600; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tile .st { font-size: 12px; color: var(--muted); min-height: 18px; }
+.tile .st .bad { color: var(--danger); }
+.tile input[type=range] { width: 100%; accent-color: var(--accent); }
+.badge-ic { position: absolute; top: 10px; right: 10px; width: 24px; height: 24px; border-radius: 50%; background: var(--danger); display: grid; place-items: center; }
+.controls { position: sticky; bottom: 0; display: flex; justify-content: center; gap: 14px; padding: 14px 0 6px; }
+.cbtn { width: 62px; height: 62px; border-radius: 50%; border: 1px solid var(--line); background: var(--raise); display: grid; place-items: center; }
+.cbtn svg { width: 26px; height: 26px; }
+.cbtn.on { background: var(--text); color: var(--bg); }
+.cbtn.leave { background: var(--danger); border-color: var(--danger); color: #fff; }
+.cbtn-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11.5px; color: var(--muted); font-weight: 600; }
+
+/* Me */
+.bg-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.bg-tile { height: 72px; border-radius: 12px; border: 2px solid var(--line); padding: 0; position: relative; overflow: hidden; }
+.bg-tile span { position: absolute; left: 6px; bottom: 5px; font-size: 11.5px; font-weight: 700; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+.bg-tile.sel { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+.color-btn input[type=color] { width: 26px; height: 22px; border: 0; padding: 0; background: none; border-radius: 6px; cursor: pointer; }
+.pill { font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.pill.on { color: var(--play); border-color: color-mix(in srgb, var(--play) 45%, transparent); background: color-mix(in srgb, var(--play) 12%, transparent); }
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+details summary { cursor: pointer; font-weight: 700; }
+details[open] summary { margin-bottom: 10px; }
+ol.steps { margin: 0; padding-left: 20px; color: var(--muted); font-size: 14px; }
+
+.toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 100px); transform: translateX(-50%); background: var(--raise); border: 1px solid var(--line); padding: 8px 14px; border-radius: 999px; font-size: 13.5px; z-index: 30; display: none; max-width: calc(100% - 32px); text-align: center; }
+.toast.show { display: block; }
+.scrim { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; place-items: center; z-index: 40; padding: 16px; }
+.scrim.open { display: grid; }
+.dialog { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px; max-width: 340px; width: 100%; display: flex; flex-direction: column; gap: 14px; }
+.dialog p { margin: 0; }
+@media (prefers-reduced-motion: reduce) { .tile .av { transition: none; } }
+</style>
+</head>
+<body class="gate">
+<header>
+  <div class="logo"><div class="mark"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#1a0d06" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v4.5h-4.5"/><path d="M12 9v6M9 12h6"/></svg></div>Save Point <small>Voice</small></div>
+  <div class="sp"></div>
+  <button class="btn ghost" id="install-btn" hidden>Install</button>
+  <button class="btn ghost" id="invite-btn">Invite</button>
+  <button class="me-btn" id="me-btn" aria-label="Your profile and settings"></button>
+</header>
+<main id="main"><div class="wrap" id="view"></div></main>
+<div class="toast" id="toast" role="status"></div>
+<div class="scrim" id="scrim" role="dialog" aria-modal="true"><div class="dialog"><p id="dlg-text"></p><div class="row" style="justify-content:flex-end"><button class="btn" id="dlg-no">Cancel</button><button class="btn primary" id="dlg-yes">OK</button></div></div></div>
+<input type="file" id="avfile" accept="image/*" class="file-in">
+<input type="file" id="bgfile" accept="image/*" class="file-in">
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+(() => {
+  /* ---------- basics ---------- */
+  const MAX = 6;
+  const DEFAULT_ROOMS = ["lounge", "squad-1", "squad-2", "ranked"];
+  const COLORS = ["#ff7a45", "#4fd1c5", "#f6c453", "#8fb3ff", "#ff8fb8", "#a6e36b", "#c39bff", "#ffa96b"];
+  const BGS = [
+    { id: "midnight", name: "Midnight", css: "#11141b", base: "#11141b" },
+    { id: "deepsea", name: "Deep sea", css: "#0c1824", base: "#0c1824" },
+    { id: "forest", name: "Forest", css: "#0f1913", base: "#0f1913" },
+    { id: "plum", name: "Plum", css: "#1a1222", base: "#1a1222" },
+    { id: "ember", name: "Ember", css: "linear-gradient(165deg, #3a1a10 0%, #1a1210 45%, #11141b 100%)", base: "#15110f" },
+    { id: "aurora", name: "Aurora", css: "linear-gradient(160deg, #0b2b2b 0%, #11141b 50%, #21163a 100%)", base: "#11141b" },
+    { id: "sunset", name: "Sunset", css: "linear-gradient(170deg, #3b1636 0%, #1b1424 50%, #11141b 100%)", base: "#151320" },
+    { id: "arcade", name: "Arcade", css: "radial-gradient(circle at 15% 0%, #3a1d5c 0%, transparent 45%), radial-gradient(circle at 100% 100%, #0f3a4a 0%, transparent 50%), #0e0f17", base: "#0e0f17" }
+  ];
+  const LOGO = (size) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="#1a0d06" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v4.5h-4.5"/><path d="M12 9v6M9 12h6"/></svg>`;
+  const CAM = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.2"/></svg>`;
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const slug = s => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24);
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem("spv-" + k); return v === null ? d : JSON.parse(v); } catch (_) { return d; } },
+    set(k, v) { try { localStorage.setItem("spv-" + k, JSON.stringify(v)); return true; } catch (_) { return false; } }
+  };
+  const sess = {
+    get(k) { try { return sessionStorage.getItem("spv-" + k); } catch (_) { return null; } },
+    set(k, v) { try { v === null ? sessionStorage.removeItem("spv-" + k) : sessionStorage.setItem("spv-" + k, v); } catch (_) {} }
+  };
+  let toastT;
+  function toast(m) { const t = $("#toast"); t.textContent = m; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 3500); }
+  function confirmBox(text, yes = "OK") {
+    return new Promise(res => {
+      $("#dlg-text").textContent = text; $("#dlg-yes").textContent = yes;
+      const sc = $("#scrim"); sc.classList.add("open");
+      const done = v => { sc.classList.remove("open"); res(v); };
+      $("#dlg-yes").onclick = () => done(true); $("#dlg-no").onclick = () => done(false);
+    });
+  }
+  const initials = n => { const p = String(n || "?").trim().split(/\s+/); return ((p[0] || "?")[0] + (p[1] ? p[1][0] : "")).toUpperCase(); };
+  const okImg = s => typeof s === "string" && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(s) && s.length < 160000;
+  const okColor = c => typeof c === "string" && /^#[0-9a-f]{6}$/i.test(c);
+
+  /* crew code + link params from Save Point */
+  const params = new URLSearchParams(location.search);
+  let crew = slug(params.get("crew") || store.get("crew", "")).replace(/-/g, "");
+  if (!crew) crew = Math.random().toString(36).slice(2, 10);
+  store.set("crew", crew);
+  const nameParam = (params.get("name") || "").trim().slice(0, 24);
+  const playParam = (params.get("playing") || "").trim().slice(0, 60);
+  const roomParam = slug(params.get("room") || "");
+  history.replaceState(null, "", location.pathname + "?crew=" + crew);
+
+  /* ---------- state ---------- */
+  const S = {
+    me: Object.assign({ name: "", color: COLORS[Math.floor(Math.random() * COLORS.length)], avatar: "", playing: "" }, store.get("me", {})),
+    bg: store.get("bg", { type: "preset", value: "midnight" }),
+    lock: store.get("lock", null),
+    entered: sess.get("entered") === "1", loggedOut: false, pinErr: "", pinFails: 0, pinWait: 0,
+    view: "lobby", secMode: null,
+    turn: store.get("turn", { url: "", user: "", pass: "" }),
+    rooms: Array.from(new Set([...(roomParam ? [roomParam] : []), ...DEFAULT_ROOMS, ...store.get("rooms", [])])),
+    lobby: {}, probing: false,
+    room: null, slot: 0, peer: null, local: null, muted: false, deaf: false, joining: false,
+    pending: {}, peers: {}, meSpeaking: false, ctx: null, meAnalyser: null, err: "",
+    draft: { name: "", playing: "" }, installEvt: null
+  };
+  if (!S.me.name && nameParam) S.draft.name = nameParam;
+  if (playParam && !S.me.playing) S.draft.playing = playParam;
+  if (playParam && S.me.name) { S.me.playing = playParam; store.set("me", S.me); }
+  const saveMe = () => { if (!store.set("me", S.me)) toast("Couldn't save on this phone. Storage may be full."); };
+
+  const pid = (room, slot) => `savepoint-${crew}-${room}-${slot}`;
+  const slotOf = id => +String(id).split("-").pop();
+  function iceConfig() {
+    const s = [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }];
+    if (S.turn.url) s.push({ urls: S.turn.url, username: S.turn.user, credential: S.turn.pass });
+    return { iceServers: s };
+  }
+
+  function avatar(p, size = "", online = false) {
+    const pic = okImg(p.avatar) ? `background:${esc(okColor(p.color) ? p.color : "#8d97a9")} url('${p.avatar}');` : `background:${esc(okColor(p.color) ? p.color : "#8d97a9")};`;
+    return `<div class="av ${size}" style="${pic}" aria-hidden="true">${okImg(p.avatar) ? "" : esc(initials(p.name))}${online ? `<span class="dot"></span>` : ""}</div>`;
+  }
+
+  /* ---------- background ---------- */
+  function applyBg() {
+    const b = S.bg || {};
+    let css, base = "#11141b";
+    if (b.type === "color" && okColor(b.value)) { css = b.value; base = b.value; }
+    else if (b.type === "image" && okImgBig(b.value)) {
+      const d = Math.max(0, Math.min(.85, typeof b.dim === "number" ? b.dim : .45));
+      css = `linear-gradient(rgba(10,12,18,${d}), rgba(10,12,18,${d})), url('${b.value}') center / cover no-repeat, #11141b`;
+    } else { const p = BGS.find(x => x.id === b.value) || BGS[0]; css = p.css; base = p.base; }
+    document.body.style.background = css;
+    document.documentElement.style.setProperty("--bg", base);
+  }
+  const okImgBig = s => typeof s === "string" && /^data:image\/(jpeg|png|webp);base64,/.test(s);
+
+  /* ---------- images ---------- */
+  async function shrink(file, max, square, quality) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+      const w = img.naturalWidth, h = img.naturalHeight, c = document.createElement("canvas");
+      if (square) { const side = Math.min(w, h), o = Math.min(max, side); c.width = c.height = o; c.getContext("2d").drawImage(img, (w - side) / 2, (h - side) / 2, side, side, 0, 0, o, o); }
+      else { const k = Math.min(1, max / Math.max(w, h)); c.width = Math.round(w * k); c.height = Math.round(h * k); c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); }
+      return c.toDataURL("image/jpeg", quality);
+    } finally { URL.revokeObjectURL(url); }
+  }
+
+  /* ---------- passcode ---------- */
+  const cryptoOk = !!(window.crypto && crypto.subtle);
+  const hex = buf => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
+  const hashPin = async (pin, salt) => hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(salt + ":" + pin)));
+  const checkPin = async pin => !!(S.lock && (await hashPin(pin, S.lock.salt)) === S.lock.hash);
+
+  /* ---------- icons ---------- */
+  const IC = {
+    mic: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>`,
+    micOff: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 10V6a3 3 0 0 0-5.7-1.3M9 9v2a3 3 0 0 0 4.6 2.5M5.5 11a6.5 6.5 0 0 0 10.4 5.2M18.4 12.6c.07-.5.1-1 .1-1.6M12 17.5V21M3 3l18 18"/></svg>`,
+    head: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3.5" y="14" width="4" height="6" rx="1.5"/><rect x="16.5" y="14" width="4" height="6" rx="1.5"/></svg>`,
+    headOff: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 15v-3a8 8 0 0 1 12.7-6.5M19.6 9.8c.26.7.4 1.4.4 2.2v3"/><rect x="3.5" y="14" width="4" height="6" rx="1.5"/><path d="M16.5 17v1.5A1.5 1.5 0 0 0 18 20h1M3 3l18 18"/></svg>`,
+    leave: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 14.5c4.7-4.7 12.3-4.7 17 0l-2.3 2.3-3.2-1.6v-2.6a10.5 10.5 0 0 0-6 0v2.6l-3.2 1.6z"/></svg>`,
+    wave: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2"/></svg>`
+  };
+
+  /* ---------- views ---------- */
+  const brand = `<div class="gate-brand"><div class="gate-mark">${LOGO(48)}</div><h1>Save Point</h1><p>Voice for your crew</p></div>`;
+
+  function gateView() {
+    if (S.loggedOut) return `<div class="gate-wrap">${brand}<section class="card gate-card"><div class="center"><h2>You're logged out</h2><p class="meta" style="margin:0">See you next session.</p></div><button class="btn primary big" data-act="login">Log in</button></section></div>`;
+    if (!S.me.name) {
+      const col = S.me.color;
+      return `<div class="gate-wrap">${brand}
+        <form class="card gate-card" id="onboard">
+          <h2>Create your player</h2>
+          <div class="center">${avatarPicker()}</div>
+          <div class="field"><label for="o-name">Gamertag</label><input id="o-name" maxlength="24" required placeholder="What should the crew call you?" value="${esc(S.draft.name)}" autocomplete="nickname"></div>
+          <div class="field"><label for="o-playing">Currently playing (optional)</label><input id="o-playing" maxlength="60" placeholder="e.g. Marvel Rivals" value="${esc(S.draft.playing)}"></div>
+          <div class="field"><label>Avatar color</label><div class="swatches">${COLORS.map(c => `<button type="button" class="swatch ${c === col ? "sel" : ""}" style="background:${c}" data-color="${c}" aria-label="Color ${c}"></button>`).join("")}</div></div>
+          <button class="btn primary big" type="submit">Press start</button>
+        </form></div>`;
+    }
+    const wait = Math.ceil((S.pinWait - Date.now()) / 1000);
+    return `<div class="gate-wrap">${brand}
+      <section class="card gate-card"><div class="center">${avatar(S.me, "lg", true)}<h2>Welcome back, ${esc(S.me.name)}</h2>
+        ${S.me.playing ? `<span class="chip-play">Playing ${esc(S.me.playing)}</span>` : ""}</div>
+        ${S.lock ? `<form id="unlock" class="field" style="gap:10px">
+            <label for="g-pin" style="text-align:center">Enter your passcode</label>
+            <input id="g-pin" class="pin-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="current-password" ${wait > 0 ? "disabled" : ""}>
+            ${wait > 0 ? `<p class="err">Too many tries. Wait ${wait}s.</p>` : S.pinErr ? `<p class="err">${esc(S.pinErr)}</p>` : ""}
+            <button class="btn primary big" type="submit" ${wait > 0 ? "disabled" : ""}>Unlock</button>
+            <button type="button" class="linkbtn" data-act="forgot">Forgot passcode?</button>
+          </form>` : `<button class="btn primary big" data-act="enter">Continue</button>`}
+      </section>
+      <div class="press">Your crew's checkpoint</div></div>`;
+  }
+
+  function avatarPicker() {
+    return `<div class="row" style="justify-content:center;gap:14px">
+      <label class="av-btn" for="avfile" aria-label="Change profile picture">${avatar(Object.assign({}, S.me, { name: S.me.name || S.draft.name }), "lg")}<span class="badge">${CAM}</span></label>
+      <div class="row"><label class="btn" for="avfile">${S.me.avatar ? "Change picture" : "Add picture"}</label>${S.me.avatar ? `<button type="button" class="btn ghost" data-act="rm-avatar">Remove</button>` : ""}</div>
+    </div>`;
+  }
+
+  function lobbyView() {
+    const rows = S.rooms.map(r => {
+      const who = S.lobby[r], live = who && who.length;
+      return `<button class="room ${live ? "live" : ""}" data-room="${esc(r)}">
+        <span class="ic">${IC.wave}</span>
+        <span class="t"><b>${esc(r)}</b><span class="who">${live ? `${who.length} in call · ${esc(who.join(", "))}` : (who ? "Nobody here yet" : "Checking…")}</span></span>
+        <span class="go">Join</span></button>`;
+    }).join("");
+    return `<div class="row" style="justify-content:space-between"><div><h2>Voice channels</h2><span class="meta">Talking as <b style="color:${esc(S.me.color)}">${esc(S.me.name)}</b></span></div>
+        <button class="btn" data-act="refresh" ${S.probing ? "disabled" : ""}>${S.probing ? "Checking…" : "Refresh"}</button></div>
+      ${S.err ? `<div class="banner err">${esc(S.err)}</div>` : ""}
+      ${roomParam && S.rooms.includes(roomParam) ? `<div class="banner">You came from <strong>#${esc(roomParam)}</strong> in Save Point. Tap it to jump in.</div>` : ""}
+      ${rows}
+      <form id="new-room" class="row"><input id="rn" maxlength="24" placeholder="New channel name" style="flex:1;min-width:0;background:var(--raise);border:1px solid var(--line);border-radius:999px;padding:9px 14px;outline:none"><button class="btn" type="submit">Add</button></form>
+      <div class="banner">Up to ${MAX} people per channel. Share the <strong>Invite</strong> link so friends land in the same channels as you.</div>`;
+  }
+
+  function tile(key, p, isMe) {
+    const who = isMe ? S.me : p;
+    const speaking = isMe ? S.meSpeaking && !S.muted : p.speaking && !p.muted;
+    const muted = isMe ? S.muted : p.muted, deaf = isMe ? S.deaf : p.deaf;
+    const state = isMe ? (S.local ? "You" : "Mic off") : (p.stream ? (p.weak ? `<span class="bad">Reconnecting…</span>` : "") : "Connecting…");
+    return `<div class="tile ${speaking ? "speaking" : ""}" data-key="${key}">
+      ${muted || deaf ? `<span class="badge-ic" aria-label="${deaf ? "Deafened" : "Muted"}"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"><path d="M3 3l18 18"/><rect x="9" y="3" width="6" height="11" rx="3"/></svg></span>` : ""}
+      ${avatar(who, "md")}
+      <div class="nm">${esc(who.name || "Someone")}</div>
+      ${who.playing ? `<div class="pl">Playing ${esc(who.playing)}</div>` : ""}
+      <div class="st">${state}${deaf ? " · Deafened" : muted ? " · Muted" : ""}</div>
+      ${!isMe && p.stream ? `<input type="range" min="0" max="150" value="${Math.round((p.vol ?? 1) * 100)}" data-vol="${key}" aria-label="Volume for ${esc(p.name || "Someone")}">` : ""}
+    </div>`;
+  }
+
+  function callView() {
+    const others = Object.entries(S.peers).filter(([, p]) => p.name || p.stream).sort((a, b) => a[0] - b[0]);
+    return `<div><h2><span class="live-dot"></span>${esc(S.room)}</h2><span class="meta">${others.length + 1} of ${MAX} in channel</span></div>
+      ${S.err ? `<div class="banner err">${esc(S.err)}</div>` : ""}
+      ${!others.length ? `<div class="banner">You're the only one here. Share the <strong>Invite</strong> link and your friends can jump in.</div>` : ""}
+      <div class="grid">${tile("me", null, true)}${others.map(([k, p]) => tile(k, p, false)).join("")}</div>
+      <div class="controls">
+        <div class="cbtn-wrap"><button class="cbtn ${S.muted ? "on" : ""}" data-act="mute" aria-pressed="${S.muted}" ${S.local ? "" : "disabled"}>${S.muted ? IC.micOff : IC.mic}</button>${S.muted ? "Unmute" : "Mute"}</div>
+        <div class="cbtn-wrap"><button class="cbtn ${S.deaf ? "on" : ""}" data-act="deaf" aria-pressed="${S.deaf}">${S.deaf ? IC.headOff : IC.head}</button>${S.deaf ? "Undeafen" : "Deafen"}</div>
+        <div class="cbtn-wrap"><button class="cbtn leave" data-act="leave" aria-label="Leave channel">${IC.leave}</button>Leave</div>
+      </div>`;
+  }
+
+  function meView() {
+    const b = S.bg || {}, cur = b.type === "preset" || !b.type ? (b.value || "midnight") : null;
+    const installed = matchMedia("(display-mode: standalone)").matches;
+    let sec = "";
+    if (S.secMode) {
+      const needCur = S.secMode !== "set", needNew = S.secMode !== "off";
+      const pin = (id, label, ac) => `<div class="field"><label for="${id}">${label}</label><input id="${id}" class="pin-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="${ac}"></div>`;
+      sec = `<form id="sec-form" style="display:flex;flex-direction:column;gap:10px">${needCur ? pin("s-cur", "Current passcode", "current-password") : ""}${needNew ? pin("s-new", "New passcode (4–8 digits)", "new-password") + pin("s-new2", "Type it again", "new-password") : ""}
+        ${S.pinErr ? `<p class="err">${esc(S.pinErr)}</p>` : ""}
+        <div class="row"><button class="btn primary" type="submit">${S.secMode === "off" ? "Turn off passcode" : "Save passcode"}</button><button type="button" class="btn ghost" data-act="sec-cancel">Cancel</button></div></form>`;
+    }
+    return `<button class="btn ghost" data-act="back" style="align-self:flex-start">← Back</button>
+      <form class="card" id="profile-form">
+        <h2>Your profile</h2>
+        ${avatarPicker()}
+        <div class="field"><label for="p-name">Gamertag</label><input id="p-name" maxlength="24" value="${esc(S.me.name)}" autocomplete="nickname"></div>
+        <div class="field"><label for="p-playing">Currently playing</label><input id="p-playing" maxlength="60" placeholder="e.g. Marvel Rivals" value="${esc(S.me.playing)}"></div>
+        <div class="field"><label>Avatar color</label><div class="swatches">${COLORS.map(c => `<button type="button" class="swatch ${c === S.me.color ? "sel" : ""}" style="background:${c}" data-color="${c}" aria-label="Color ${c}"></button>`).join("")}</div></div>
+        <div><button class="btn primary" type="submit">Save profile</button></div>
+      </form>
+      <h3>Background</h3>
+      <section class="card">
+        <div class="bg-grid">${BGS.map(p => `<button class="bg-tile ${cur === p.id ? "sel" : ""}" data-bg="${p.id}" style="background:${p.css}" aria-label="${p.name} background"><span>${p.name}</span></button>`).join("")}</div>
+        <div class="row">
+          <label class="btn color-btn ${b.type === "color" ? "primary" : ""}" for="bg-color">Custom color <input type="color" id="bg-color" value="${b.type === "color" && okColor(b.value) ? b.value : "#1c2436"}"></label>
+          <label class="btn ${b.type === "image" ? "primary" : ""}" for="bgfile">${b.type === "image" ? "Change photo" : "Use a photo"}</label>
+          <button class="btn ghost" data-act="bg-reset">Reset</button>
+        </div>
+        ${b.type === "image" ? `<div class="field"><label for="bg-dim">Darken photo so text stays readable</label><input type="range" id="bg-dim" min="0" max="85" value="${Math.round((typeof b.dim === "number" ? b.dim : .45) * 100)}"></div>` : ""}
+      </section>
+      <h3>Security</h3>
+      <section class="card">
+        ${cryptoOk ? `<div class="row"><div style="flex:1;min-width:160px"><b>Passcode <span class="pill ${S.lock ? "on" : ""}">${S.lock ? "On" : "Off"}</span></b><div class="meta">Asks for a code each time you open the app.</div></div>
+          ${S.secMode ? "" : S.lock ? `<button class="btn" data-act="sec" data-mode="change">Change</button><button class="btn ghost" data-act="sec" data-mode="off">Turn off</button>` : `<button class="btn" data-act="sec" data-mode="set">Set passcode</button>`}</div>${sec}` : `<p class="meta" style="margin:0">Passcodes need a newer browser.</p>`}
+        <div style="border-top:1px solid var(--line);padding-top:12px"><button class="btn danger big" data-act="logout">Log out</button></div>
+      </section>
+      <h3>App</h3>
+      <section class="card">
+        ${installed ? `<p class="meta" style="margin:0">You're using the installed app.</p>` : S.installEvt ? `<button class="btn primary" data-act="install">Install Save Point Voice</button>` : `<p class="meta" style="margin:0">To install: open the browser menu <b>⋮</b> and tap <b>Install app</b> or <b>Add to Home screen</b>.</p>`}
+        <details><summary>Connection settings</summary>
+          <p class="meta" style="margin-top:0">Most home Wi-Fi works without this. If calls connect but nobody can hear each other (common on mobile data or school/work networks), add a free TURN relay, for example from metered.ca, and paste its details here. Everyone in the crew should use the same one.</p>
+          <form id="turn-form" class="field" style="gap:8px">
+            <div class="field"><label for="tu">TURN URL</label><input id="tu" placeholder="turn:example.com:443?transport=tcp" value="${esc(S.turn.url)}"></div>
+            <div class="field"><label for="tn">Username</label><input id="tn" value="${esc(S.turn.user)}" autocomplete="off"></div>
+            <div class="field"><label for="tp">Password</label><input id="tp" type="password" value="${esc(S.turn.pass)}" autocomplete="off"></div>
+            <button class="btn" type="submit">Save</button>
+          </form>
+        </details>
+      </section>`;
+  }
+
+  function render() {
+    const gate = !S.entered || !S.me.name;
+    document.body.classList.toggle("gate", gate);
+    $("#me-btn").innerHTML = S.me.name ? avatar(S.me, "sm") : "";
+    const a = document.activeElement, fid = a && a.id;
+    let html;
+    if (gate) html = gateView();
+    else if (S.view === "me" && !S.room) html = meView();
+    else html = S.room ? callView() : lobbyView();
+    $("#view").innerHTML = html;
+    if (fid) { const el = document.getElementById(fid); if (el && el.tagName === "INPUT" && el.type !== "range") el.focus({ preventScroll: true }); }
+  }
+
+  function paintSpeaking() {
+    const me = document.querySelector('.tile[data-key="me"]');
+    if (me) me.classList.toggle("speaking", S.meSpeaking && !S.muted);
+    for (const [k, p] of Object.entries(S.peers)) {
+      const t = document.querySelector(`.tile[data-key="${k}"]`);
+      if (t) t.classList.toggle("speaking", !!p.speaking && !p.muted && !S.deaf);
+    }
+  }
+
+  /* ---------- lobby probe ---------- */
+  async function probe() {
+    if (S.probing || S.room || !window.Peer || !S.entered) return;
+    S.probing = true; render();
+    const result = {}; S.rooms.forEach(r => result[r] = []);
+    let pr;
+    try {
+      pr = new Peer({ config: iceConfig(), debug: 0 });
+      await new Promise((res, rej) => { pr.on("open", res); pr.on("error", e => { if (e.type !== "peer-unavailable") rej(e); }); setTimeout(() => rej(new Error("timeout")), 8000); });
+      const waits = [];
+      for (const r of S.rooms) for (let s = 1; s <= MAX; s++) {
+        waits.push(new Promise(res => {
+          const c = pr.connect(pid(r, s), { metadata: { probe: true }, reliable: true });
+          const done = () => { try { c.close(); } catch (_) {} res(); };
+          const t = setTimeout(done, 4500);
+          c.on("data", d => { if (d && d.t === "hello") result[r].push(String(d.name || "Someone").slice(0, 24)); clearTimeout(t); done(); });
+          c.on("error", () => { clearTimeout(t); done(); });
+        }));
+      }
+      await Promise.all(waits);
+      S.lobby = result; S.err = "";
+    } catch (e) {
+      S.err = "Couldn't reach the voice server. Check your internet and tap Refresh.";
+      S.rooms.forEach(r => { if (!S.lobby[r]) S.lobby[r] = []; });
+    }
+    try { pr && pr.destroy(); } catch (_) {}
+    S.probing = false; render();
+  }
+
+  /* ---------- calls ---------- */
+  function claimSlot(room) {
+    return new Promise(async (resolve, reject) => {
+      for (let s = 1; s <= MAX; s++) {
+        const ok = await new Promise(res => {
+          const p = new Peer(pid(room, s), { config: iceConfig(), debug: 0 });
+          const t = setTimeout(() => { p.destroy(); res(null); }, 9000);
+          p.on("open", () => { clearTimeout(t); res(p); });
+          p.on("error", e => { clearTimeout(t); if (e.type === "unavailable-id") { p.destroy(); res(false); } else if (!p.open) { p.destroy(); res(null); } });
+        });
+        if (ok) return resolve({ peer: ok, slot: s });
+        if (ok === null) return reject(new Error("server"));
+      }
+      reject(new Error("full"));
+    });
+  }
+
+  async function join(room) {
+    if (S.joining || S.room) return;
+    S.joining = true; S.err = "";
+    try { S.local = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false }); }
+    catch (e) { S.local = null; toast("No microphone access. You can still listen. Allow the mic in your browser settings to talk."); }
+    try { S.ctx = S.ctx || new (window.AudioContext || window.webkitAudioContext)(); if (S.ctx.state === "suspended") await S.ctx.resume(); } catch (_) {}
+    if (S.local && S.ctx) { try { const src = S.ctx.createMediaStreamSource(S.local); S.meAnalyser = S.ctx.createAnalyser(); S.meAnalyser.fftSize = 512; src.connect(S.meAnalyser); } catch (_) {} }
+    toast("Joining " + room + "…");
+    let got;
+    try { got = await claimSlot(room); }
+    catch (e) {
+      S.joining = false; stopLocal();
+      S.err = e.message === "full" ? `#${room} is full (${MAX} people). Try another channel.` : "Couldn't reach the voice server. Check your internet and try again.";
+      render(); return;
+    }
+    S.peer = got.peer; S.slot = got.slot; S.room = room; S.joining = false; S.view = "lobby";
+    S.muted = !S.local; applyMute();
+    wirePeer();
+    for (let s = 1; s <= MAX; s++) if (s !== S.slot) connectTo(s);
+    render();
+    if (navigator.wakeLock) navigator.wakeLock.request("screen").then(l => S.wake = l).catch(() => {});
+  }
+
+  const entry = s => S.peers[s] = S.peers[s] || { vol: 1 };
+  const helloMsg = () => ({ t: "hello", name: S.me.name, color: S.me.color, playing: S.me.playing, avatar: okImg(S.me.avatar) ? S.me.avatar : "", muted: S.muted || !S.local, deaf: S.deaf });
+
+  function wirePeer() {
+    const peer = S.peer;
+    peer.on("connection", conn => {
+      if (conn.metadata && conn.metadata.probe) { conn.on("open", () => { conn.send({ t: "hello", name: S.me.name }); setTimeout(() => conn.close(), 1500); }); return; }
+      setupConn(conn);
+    });
+    peer.on("call", call => {
+      const s = slotOf(call.peer), ex = S.peers[s];
+      const out = S.pending[s] || (ex && ex.outgoing && ex.call);
+      if (out && S.slot < s) { call.close(); return; }
+      if (out) { try { out.close(); } catch (_) {} delete S.pending[s]; if (ex && ex.call === out) ex.call = null; }
+      call.answer(S.local || silentStream());
+      setupCall(call, s, false);
+    });
+    peer.on("disconnected", () => { if (S.peer === peer && !peer.destroyed) { try { peer.reconnect(); } catch (_) {} } });
+    peer.on("error", e => {
+      if (e.type === "peer-unavailable") {
+        const m = String(e.message || "").match(/savepoint-[A-Za-z0-9-]+/);
+        if (m) { const s = slotOf(m[0]); if (S.pending[s]) { try { S.pending[s].close(); } catch (_) {} delete S.pending[s]; } }
+        return;
+      }
+      if (["network", "server-error", "socket-error"].includes(e.type)) S.err = "Lost connection to the voice server. Trying to reconnect…";
+      render();
+    });
+  }
+
+  function connectTo(s) {
+    const id = pid(S.room, s);
+    setupConn(S.peer.connect(id, { metadata: { name: S.me.name, color: S.me.color }, reliable: true }));
+    const call = S.peer.call(id, S.local || silentStream(), { metadata: { name: S.me.name } });
+    if (call) setupCall(call, s, true);
+  }
+
+  function setupConn(conn) {
+    const s = slotOf(conn.peer);
+    conn.on("open", () => {
+      const e = entry(s); e.conn = conn;
+      if (conn.metadata && conn.metadata.name && !e.name) { e.name = String(conn.metadata.name).slice(0, 24); e.color = conn.metadata.color; }
+      conn.send(helloMsg()); render();
+    });
+    conn.on("data", d => {
+      if (!d || typeof d !== "object") return;
+      const e = entry(s);
+      if (d.t === "hello" || d.t === "state") {
+        if (typeof d.name === "string") e.name = d.name.slice(0, 24);
+        if (okColor(d.color)) e.color = d.color;
+        if (typeof d.playing === "string") e.playing = d.playing.slice(0, 60);
+        if (typeof d.avatar === "string") e.avatar = okImg(d.avatar) ? d.avatar : "";
+        e.muted = !!d.muted; e.deaf = !!d.deaf;
+        if (d.t === "hello" && !e.greeted) { e.greeted = true; if (S.room) toast(`${e.name || "Someone"} joined`); }
+        render();
+      }
+      if (d.t === "bye") dropPeer(s, true);
+    });
+    conn.on("close", () => { const e = S.peers[s]; if (e && e.conn === conn) { e.conn = null; maybeDrop(s); } });
+    conn.on("error", () => {});
+  }
+
+  function setupCall(call, s, outgoing) {
+    if (outgoing) S.pending[s] = call;
+    else { const e0 = entry(s); e0.call = call; e0.outgoing = false; }
+    call.on("stream", stream => {
+      if (outgoing) { if (S.pending[s] !== call) return; delete S.pending[s]; const e1 = entry(s); if (e1.call && e1.call !== call) { try { e1.call.close(); } catch (_) {} } e1.call = call; e1.outgoing = true; }
+      const e = entry(s);
+      if (e.call !== call) return;
+      e.stream = stream;
+      if (!e.el) { e.el = new Audio(); e.el.autoplay = true; e.el.playsInline = true; document.body.appendChild(e.el); }
+      e.el.srcObject = stream; e.el.muted = S.deaf; e.el.volume = Math.min(1, e.vol ?? 1);
+      e.el.play().catch(() => toast("Tap anywhere to turn on sound."));
+      try { if (S.ctx) { const src = S.ctx.createMediaStreamSource(stream); e.analyser = S.ctx.createAnalyser(); e.analyser.fftSize = 512; src.connect(e.analyser); } } catch (_) {}
+      render(); watchIce(call, s);
+    });
+    call.on("close", () => {
+      if (S.pending[s] === call) { delete S.pending[s]; return; }
+      const e = S.peers[s]; if (e && e.call === call) { e.call = null; maybeDrop(s); }
+    });
+    call.on("error", () => {});
+  }
+
+  function watchIce(call, s) {
+    const pc = call.peerConnection; if (!pc) return;
+    pc.addEventListener("connectionstatechange", () => {
+      const e = S.peers[s]; if (!e || e.call !== call) return;
+      const st = pc.connectionState;
+      e.weak = st === "disconnected";
+      if (st === "failed") { S.err = S.turn.url ? "A connection failed. Someone may be on a blocked network." : "Someone couldn't connect. This happens on some networks; add a TURN relay under Me → Connection settings."; dropPeer(s, false); }
+      render();
+    });
+  }
+  function maybeDrop(s) { const e = S.peers[s]; if (e && !e.conn && !e.call) dropPeer(s, true); }
+  function dropPeer(s, announce) {
+    const e = S.peers[s]; if (!e) return;
+    try { e.call && e.call.close(); } catch (_) {}
+    try { e.conn && e.conn.close(); } catch (_) {}
+    if (e.gain) try { e.gain.disconnect(); } catch (_) {}
+    if (e.el) { e.el.srcObject = null; e.el.remove(); }
+    if (announce && e.name && S.room) toast(`${e.name} left`);
+    delete S.peers[s]; render();
+  }
+  let silent = null;
+  function silentStream() { if (silent) return silent; try { const ctx = S.ctx || new AudioContext(); silent = ctx.createMediaStreamDestination().stream; } catch (_) { silent = new MediaStream(); } return silent; }
+  function broadcast(m) { for (const e of Object.values(S.peers)) if (e.conn && e.conn.open) try { e.conn.send(m); } catch (_) {} }
+  function applyMute() { if (S.local) S.local.getAudioTracks().forEach(t => t.enabled = !S.muted && !S.deaf); }
+  function sendState() { broadcast(Object.assign(helloMsg(), { t: "state" })); }
+  function stopLocal() { if (S.local) S.local.getTracks().forEach(t => t.stop()); S.local = null; S.meAnalyser = null; }
+  function leave() {
+    broadcast({ t: "bye" });
+    for (const s of Object.keys(S.peers)) dropPeer(s, false);
+    for (const c of Object.values(S.pending)) { try { c.close(); } catch (_) {} }
+    S.pending = {};
+    setTimeout(() => { try { S.peer && S.peer.destroy(); } catch (_) {} S.peer = null; }, 300);
+    stopLocal();
+    if (S.wake) { S.wake.release().catch(() => {}); S.wake = null; }
+    S.room = null; S.slot = 0; S.muted = false; S.deaf = false; S.err = "";
+    render(); setTimeout(probe, 800);
+  }
+
+  const buf = new Uint8Array(512);
+  function level(an) { if (!an) return 0; an.getByteTimeDomainData(buf); let sum = 0; for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; sum += v * v; } return Math.sqrt(sum / buf.length); }
+  setInterval(() => {
+    if (!S.room) return;
+    S.meSpeaking = level(S.meAnalyser) > 0.035;
+    for (const e of Object.values(S.peers)) e.speaking = level(e.analyser) > 0.035;
+    paintSpeaking();
+  }, 120);
+
+  /* ---------- session ---------- */
+  function enter() { S.entered = true; S.loggedOut = false; sess.set("entered", "1"); S.view = "lobby"; render(); probe(); }
+  async function unlock() {
+    if (Date.now() < S.pinWait) return;
+    if (await checkPin($("#g-pin").value)) { S.pinFails = 0; S.pinErr = ""; enter(); return; }
+    S.pinFails++; S.pinErr = "That passcode isn't right.";
+    if (S.pinFails >= 5) { S.pinFails = 0; S.pinWait = Date.now() + 30000; const t = setInterval(() => { render(); if (Date.now() >= S.pinWait) { clearInterval(t); S.pinErr = ""; render(); } }, 1000); }
+    render(); const i = $("#g-pin"); if (i) i.focus();
+  }
+
+  /* ---------- events ---------- */
+  document.addEventListener("click", async e => {
+    if (S.ctx && S.ctx.state === "suspended") S.ctx.resume().catch(() => {});
+    for (const p of Object.values(S.peers)) if (p.el && p.el.paused && !S.deaf) p.el.play().catch(() => {});
+    const sw = e.target.closest(".swatch");
+    if (sw) { S.me.color = sw.dataset.color; if (S.me.name) { saveMe(); sendState(); } document.querySelectorAll(".swatch").forEach(x => x.classList.toggle("sel", x === sw)); return; }
+    const room = e.target.closest("[data-room]");
+    if (room) { join(room.dataset.room); return; }
+    const bgt = e.target.closest("[data-bg]");
+    if (bgt) { S.bg = { type: "preset", value: bgt.dataset.bg }; store.set("bg", S.bg); applyBg(); render(); return; }
+    const b = e.target.closest("[data-act]");
+    if (!b) return;
+    const a = b.dataset.act;
+    if (a === "refresh") probe();
+    else if (a === "enter") enter();
+    else if (a === "login") { S.loggedOut = false; render(); }
+    else if (a === "forgot") {
+      if (await confirmBox("Reset your passcode? Your profile stays. You can set a new passcode under Me.", "Reset")) { S.lock = null; store.set("lock", null); S.pinErr = ""; enter(); }
+    }
+    else if (a === "back") { S.view = "lobby"; S.secMode = null; S.pinErr = ""; render(); }
+    else if (a === "rm-avatar") { S.me.avatar = ""; if (S.me.name) { saveMe(); sendState(); } render(); }
+    else if (a === "bg-reset") { S.bg = { type: "preset", value: "midnight" }; store.set("bg", S.bg); applyBg(); render(); }
+    else if (a === "sec") { S.secMode = b.dataset.mode; S.pinErr = ""; render(); }
+    else if (a === "sec-cancel") { S.secMode = null; S.pinErr = ""; render(); }
+    else if (a === "logout") {
+      if (!(await confirmBox("Log out of Save Point Voice?", "Log out"))) return;
+      if (S.room) leave();
+      S.entered = false; S.loggedOut = true; S.view = "lobby"; sess.set("entered", null); render();
+    }
+    else if (a === "install") { if (S.installEvt) { S.installEvt.prompt(); S.installEvt.userChoice.finally(() => { S.installEvt = null; $("#install-btn").hidden = true; render(); }); } }
+    else if (a === "mute") { S.muted = !S.muted; if (!S.muted && S.deaf) { S.deaf = false; for (const p of Object.values(S.peers)) if (p.el) p.el.muted = false; } applyMute(); sendState(); render(); }
+    else if (a === "deaf") { S.deaf = !S.deaf; for (const p of Object.values(S.peers)) { if (p.el && !p.gain) p.el.muted = S.deaf; if (p.gain) p.gain.gain.value = S.deaf ? 0 : p.vol; } applyMute(); sendState(); render(); }
+    else if (a === "leave") leave();
+  });
+
+  document.addEventListener("input", e => {
+    const t = e.target;
+    if (t.id === "o-name") S.draft.name = t.value;
+    else if (t.id === "o-playing") S.draft.playing = t.value;
+    else if (t.id === "bg-color") { S.bg = { type: "color", value: t.value }; applyBg(); }
+    else if (t.id === "bg-dim" && S.bg.type === "image") { S.bg.dim = +t.value / 100; applyBg(); store.set("bg", S.bg); }
+    else if (t.dataset && t.dataset.vol) {
+      const p = S.peers[t.dataset.vol]; if (!p) return;
+      p.vol = +t.value / 100;
+      if (p.vol > 1 && S.ctx && p.stream) {
+        if (!p.gain) { try { const src = S.ctx.createMediaStreamSource(p.stream); p.gain = S.ctx.createGain(); src.connect(p.gain).connect(S.ctx.destination); } catch (_) {} }
+        if (p.gain) { p.gain.gain.value = S.deaf ? 0 : p.vol; p.el.muted = true; }
+      } else { if (p.gain) p.gain.gain.value = 0; if (p.el) { p.el.muted = S.deaf; p.el.volume = p.vol; } }
+    }
+  });
+  document.addEventListener("change", e => {
+    if (e.target.id === "bg-color") { S.bg = { type: "color", value: e.target.value }; store.set("bg", S.bg); applyBg(); render(); }
+  });
+
+  document.addEventListener("submit", async e => {
+    e.preventDefault();
+    const id = e.target.id;
+    if (id === "onboard") {
+      const n = $("#o-name").value.trim().slice(0, 24);
+      if (!n) { toast("Pick a gamertag to start."); return; }
+      S.me.name = n; S.me.playing = $("#o-playing").value.trim().slice(0, 60);
+      saveMe(); toast("You're in. Welcome!"); enter();
+    } else if (id === "unlock") unlock();
+    else if (id === "profile-form") {
+      const n = $("#p-name").value.trim().slice(0, 24);
+      if (!n) { toast("Your gamertag can't be empty."); return; }
+      S.me.name = n; S.me.playing = $("#p-playing").value.trim().slice(0, 60);
+      saveMe(); sendState(); toast("Profile saved."); render();
+    } else if (id === "sec-form") {
+      const cur = $("#s-cur"), n1 = $("#s-new"), n2 = $("#s-new2");
+      S.pinErr = "";
+      if (cur && !(await checkPin(cur.value))) { S.pinErr = "Your current passcode isn't right."; render(); return; }
+      if (S.secMode === "off") { S.lock = null; store.set("lock", null); toast("Passcode turned off."); }
+      else {
+        if (!/^\d{4,8}$/.test(n1.value)) { S.pinErr = "Use 4 to 8 digits."; render(); return; }
+        if (n1.value !== n2.value) { S.pinErr = "Those passcodes don't match."; render(); return; }
+        const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
+        S.lock = { salt, hash: await hashPin(n1.value, salt) }; store.set("lock", S.lock);
+        toast("Passcode saved.");
+      }
+      S.secMode = null; render();
+    } else if (id === "new-room") {
+      const r = slug($("#rn").value); if (!r) return;
+      if (!S.rooms.includes(r)) { S.rooms.push(r); store.set("rooms", S.rooms.filter(x => !DEFAULT_ROOMS.includes(x))); }
+      render(); probe();
+    } else if (id === "turn-form") {
+      S.turn = { url: $("#tu").value.trim(), user: $("#tn").value.trim(), pass: $("#tp").value };
+      store.set("turn", S.turn); toast("Saved. Rejoin a channel to use it.");
+    }
+  });
+
+  $("#avfile").addEventListener("change", async e => {
+    const f = e.target.files && e.target.files[0]; e.target.value = "";
+    if (!f) return;
+    try {
+      let q = 0.82, url = await shrink(f, 256, true, q);
+      while (url.length > 150000 && q > 0.4) { q -= 0.15; url = await shrink(f, 256, true, q); }
+      S.me.avatar = url;
+      if (S.me.name) { saveMe(); sendState(); }
+      toast("Profile picture updated."); render();
+    } catch (_) { toast("Couldn't read that photo. Try another one."); }
+  });
+  $("#bgfile").addEventListener("change", async e => {
+    const f = e.target.files && e.target.files[0]; e.target.value = "";
+    if (!f) return;
+    try {
+      const url = await shrink(f, 1280, false, 0.8);
+      const next = { type: "image", value: url, dim: typeof S.bg.dim === "number" ? S.bg.dim : .45 };
+      if (!store.set("bg", next)) { toast("That photo is too big to save on this phone. Try a smaller one."); return; }
+      S.bg = next; applyBg(); render(); toast("Background updated.");
+    } catch (_) { toast("Couldn't read that photo. Try another one."); }
+  });
+
+  $("#me-btn").addEventListener("click", () => { if (S.room) { toast("Leave the channel to change settings."); return; } S.view = S.view === "me" ? "lobby" : "me"; render(); $("#main").scrollTop = 0; });
+  $("#invite-btn").addEventListener("click", async () => {
+    const url = location.origin + location.pathname + "?crew=" + encodeURIComponent(crew);
+    try {
+      if (navigator.share) await navigator.share({ title: "Save Point Voice", text: "Hop in voice with the crew", url });
+      else { await navigator.clipboard.writeText(url); toast("Invite link copied."); }
+    } catch (_) { try { await navigator.clipboard.writeText(url); toast("Invite link copied."); } catch (__) { prompt("Copy this invite link:", url); } }
+  });
+  window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); S.installEvt = e; $("#install-btn").hidden = false; if (S.view === "me") render(); });
+  $("#install-btn").addEventListener("click", () => { if (S.installEvt) { S.installEvt.prompt(); S.installEvt.userChoice.finally(() => { S.installEvt = null; $("#install-btn").hidden = true; }); } });
+  window.addEventListener("appinstalled", () => { $("#install-btn").hidden = true; toast("Installed! Open it from your home screen."); });
+  window.addEventListener("pagehide", () => { if (S.room) broadcast({ t: "bye" }); });
+  setInterval(() => { if (!S.room && S.entered && S.view === "lobby" && !document.hidden) probe(); }, 30000);
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+
+  applyBg();
+  if (!window.Peer) S.err = "Couldn't load the voice engine. Check your internet and reopen the app.";
+  else if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) S.err = "This browser can't use the microphone here. Open the app in Chrome.";
+  render();
+  if (S.entered && S.me.name) probe();
+})();
+</script>
+</body>
+</html>
